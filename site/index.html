@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>depfirewall — block hallucinated & vulnerable dependencies before merge</title>
+<meta name="description" content="A GitHub Action that fails PRs adding dependencies that don't exist (AI hallucinations / slopsquatting) or carry known CVEs. Free for public repos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --iron: #14161a;
+    --gunmetal: #1c2027;
+    --seam: #2a303a;
+    --bone: #e9e4d8;
+    --steel: #8b93a1;
+    --amber: #f0a028;
+    --amber-deep: #c47d10;
+    --block: #e5484d;
+    --pass: #55b46a;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --disp: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--iron); color: var(--bone);
+    font-family: var(--disp); font-size: 17px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--amber); text-decoration: none; }
+  a:hover, a:focus-visible { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- top bar ---------- */
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { font-family: var(--mono); font-weight: 600; font-size: 15px; letter-spacing: .02em; color: var(--bone); }
+  .brand .amp { color: var(--amber); }
+  nav .links { display: flex; gap: 26px; font-size: 14px; }
+  nav .links a { color: var(--steel); }
+  nav .links a:hover { color: var(--bone); text-decoration: none; }
+
+  /* ---------- hero ---------- */
+  header { padding: 64px 0 80px; }
+  .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 56px; align-items: center; }
+  .eyebrow { font-family: var(--mono); font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--amber); margin-bottom: 20px; }
+  h1 { font-size: clamp(34px, 4.6vw, 52px); line-height: 1.08; font-weight: 700; letter-spacing: -.015em; margin-bottom: 22px; }
+  h1 .strike { color: var(--steel); text-decoration: line-through; text-decoration-color: var(--block); text-decoration-thickness: 3px; }
+  .lede { color: var(--steel); font-size: 18.5px; max-width: 46ch; margin-bottom: 34px; }
+  .lede strong { color: var(--bone); font-weight: 500; }
+
+  .install { background: var(--gunmetal); border: 1px solid var(--seam); border-radius: 10px; overflow: hidden; max-width: 560px; }
+  .install .bar { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--seam); font-family: var(--mono); font-size: 12px; color: var(--steel); }
+  .install button { font-family: var(--mono); font-size: 12px; background: none; border: 1px solid var(--seam); color: var(--amber); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  .install button:hover { border-color: var(--amber-deep); }
+  .install pre { padding: 16px 18px; font-family: var(--mono); font-size: 13.5px; line-height: 1.7; overflow-x: auto; color: var(--bone); }
+  .install .c { color: var(--steel); } .install .k { color: var(--amber); }
+
+  /* ---------- the verdict card (signature) ---------- */
+  .verdict { background: var(--gunmetal); border: 1px solid var(--seam); border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.45); overflow: hidden; }
+  .verdict .head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--seam); font-size: 14px; }
+  .verdict .head .x { width: 22px; height: 22px; border-radius: 50%; background: var(--block); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex: none; }
+  .verdict .head b { font-weight: 500; }
+  .verdict .head span { color: var(--steel); }
+  .verdict table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.8px; }
+  .verdict th { text-align: left; color: var(--steel); font-weight: 400; padding: 10px 18px 8px; border-bottom: 1px solid var(--seam); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; }
+  .verdict td { padding: 11px 18px; border-bottom: 1px solid var(--seam); vertical-align: top; }
+  .verdict tr:last-child td { border-bottom: none; }
+  .verdict .why { color: var(--steel); font-family: var(--disp); font-size: 13px; }
+  .tag { display: inline-block; font-weight: 600; font-size: 11.5px; padding: 2px 9px; border-radius: 20px; letter-spacing: .04em; }
+  .tag.unknown { background: rgba(229,72,77,.14); color: #ff7b7f; border: 1px solid rgba(229,72,77,.4); }
+  .tag.vuln    { background: rgba(240,160,40,.12); color: var(--amber); border: 1px solid rgba(240,160,40,.4); }
+  .tag.safe    { background: rgba(85,180,106,.12); color: var(--pass); border: 1px solid rgba(85,180,106,.35); }
+  .verdict .foot { padding: 12px 18px; font-size: 12.5px; color: var(--steel); border-top: 1px solid var(--seam); }
+  .verdict .foot b { color: var(--block); font-weight: 600; }
+  @media (prefers-reduced-motion: no-preference) {
+    .verdict tbody tr { opacity: 0; transform: translateY(6px); animation: row .45s ease forwards; }
+    .verdict tbody tr:nth-child(1) { animation-delay: .15s; }
+    .verdict tbody tr:nth-child(2) { animation-delay: .35s; }
+    .verdict tbody tr:nth-child(3) { animation-delay: .55s; }
+    @keyframes row { to { opacity: 1; transform: none; } }
+  }
+
+  /* ---------- sections ---------- */
+  section { padding: 72px 0; border-top: 1px solid var(--seam); }
+  h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 700; letter-spacing: -.01em; margin-bottom: 14px; }
+  .sub { color: var(--steel); max-width: 62ch; margin-bottom: 40px; }
+
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .step { background: var(--gunmetal); border: 1px solid var(--seam); border-radius: 10px; padding: 22px 20px; }
+  .step .n { font-family: var(--mono); color: var(--amber); font-size: 13px; margin-bottom: 12px; }
+  .step h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+  .step p { font-size: 14px; color: var(--steel); }
+  .step code { font-family: var(--mono); font-size: 12.5px; color: var(--bone); }
+
+  /* ---------- pricing ---------- */
+  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 760px; }
+  .plan { border: 1px solid var(--seam); border-radius: 12px; padding: 30px 28px; background: var(--gunmetal); }
+  .plan.pro { border-color: var(--amber-deep); position: relative; }
+  .plan .name { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--steel); margin-bottom: 10px; }
+  .plan.pro .name { color: var(--amber); }
+  .plan .price { font-size: 34px; font-weight: 700; margin-bottom: 4px; }
+  .plan .per { color: var(--steel); font-size: 14px; margin-bottom: 20px; }
+  .plan ul { list-style: none; font-size: 14.5px; color: var(--steel); }
+  .plan li { padding: 5px 0 5px 22px; position: relative; }
+  .plan li::before { content: "—"; position: absolute; left: 0; color: var(--amber-deep); }
+  .plan li b { color: var(--bone); font-weight: 500; }
+  .cta { display: inline-block; margin-top: 24px; font-family: var(--mono); font-size: 14px; font-weight: 600; padding: 11px 22px; border-radius: 8px; }
+  .cta.solid { background: var(--amber); color: #171208; }
+  .cta.solid:hover { background: #ffb63f; text-decoration: none; }
+  .cta.ghost { border: 1px solid var(--seam); color: var(--bone); }
+  .cta.ghost:hover { border-color: var(--steel); text-decoration: none; }
+
+  .trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .trust div { font-size: 14.5px; color: var(--steel); border-left: 2px solid var(--amber-deep); padding-left: 16px; }
+  .trust b { display: block; color: var(--bone); font-weight: 500; margin-bottom: 4px; }
+
+  footer { border-top: 1px solid var(--seam); padding: 36px 0 48px; display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; color: var(--steel); }
+  footer .brand { font-size: 13.5px; }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 40px; }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .plans, .trust { grid-template-columns: 1fr; }
+    nav .links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <div class="brand">dep<span class="amp">firewall</span></div>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="https://github.com/alwaysreadyallies/depfirewall">GitHub</a>
+      <a href="https://alwaysreadyallies.com">Always Ready Allies</a>
+    </div>
+  </nav>
+
+  <header>
+    <div class="hero">
+      <div>
+        <div class="eyebrow">GitHub Action · supply-chain gate</div>
+        <h1>Your AI added a package that <span class="strike">doesn't exist</span>.<br>Someone registered it anyway.</h1>
+        <p class="lede">LLMs hallucinate dependency names — and attackers pre-register them with payloads.
+        <strong>depfirewall fails the PR</strong> when a dependency exists on no registry, or ships known CVEs.
+        One workflow file. No config. Your code never leaves GitHub.</p>
+        <div class="install">
+          <div class="bar"><span>.github/workflows/depfirewall.yml</span><button onclick="navigator.clipboard.writeText(document.getElementById('snip').innerText).then(()=>{this.textContent='copied';setTimeout(()=>this.textContent='copy',1500)})">copy</button></div>
+          <pre id="snip"><span class="k">on</span>: [pull_request]
+<span class="k">permissions</span>: { contents: read, pull-requests: write }
+<span class="k">jobs</span>:
+  depfirewall:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">steps</span>:
+      - <span class="k">uses</span>: actions/checkout@v4
+      - <span class="k">uses</span>: alwaysreadyallies/depfirewall@v1</pre>
+        </div>
+      </div>
+
+      <div class="verdict" role="img" aria-label="Example failed pull-request check: one hallucinated dependency blocked, one vulnerable dependency blocked, one safe dependency passed">
+        <div class="head"><span class="x">✕</span><b>Dependency Firewall — FAIL</b><span>· PR #7 · 3 changed deps</span></div>
+        <table>
+          <thead><tr><th>dependency</th><th>verdict</th><th>why</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>reqests-toolbelt@1.0</td>
+              <td><span class="tag unknown">UNKNOWN</span></td>
+              <td class="why">exists on no registry — hallucinated, or slopsquat bait</td>
+            </tr>
+            <tr>
+              <td>requests@2.5.0</td>
+              <td><span class="tag vuln">VULNERABLE</span></td>
+              <td class="why">6 advisories, worst CVE-2018-18074 · CVSS 7.5</td>
+            </tr>
+            <tr>
+              <td>numpy@2.5.1</td>
+              <td><span class="tag safe">SAFE</span></td>
+              <td class="why">no known issues</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="foot">merge <b>blocked</b> · certificate: depfirewall-certificate.json</div>
+      </div>
+    </div>
+  </header>
+
+  <section id="how">
+    <h2>Four checks between "AI wrote it" and "it's in main"</h2>
+    <p class="sub">Dependabot and <code style="font-family:var(--mono);font-size:14px">npm audit</code> scan packages that exist for bugs that are known.
+    A package that exists <em>nowhere</em> sails straight through them. That's the gap this closes.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1 · diff</div><h3>Only what changed</h3><p>The dep-set is diffed against the PR base — <code>requirements.txt</code>, <code>pyproject.toml</code>, <code>package.json</code>. Added or version-changed deps get checked; the other 400 lines don't get re-litigated.</p></div>
+      <div class="step"><div class="n">2 · exists?</div><h3>Hallucination check</h3><p>Each dep is looked up on <a href="https://deps.dev">deps.dev</a>. A 404 is confirmed against the native registry (PyPI, npm, crates.io, Go proxy) — only a package that exists <em>nowhere</em> fails.</p></div>
+      <div class="step"><div class="n">3 · safe?</div><h3>CVE check</h3><p>Known advisories, deduped per CVE, scored by max CVSS. Set a severity floor (<code>7.0</code> = high/critical only) or fail on any advisory.</p></div>
+      <div class="step"><div class="n">4 · prove it</div><h3>Verdict + certificate</h3><p>One PR comment, updated in place on every push, plus a checkable JSON certificate — the audit trail that your AI-written code was verified before merge.</p></div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <h2>Free where it spreads. Paid where it matters.</h2>
+    <p class="sub">Public repositories run the full gate free, forever. Private repositories need a license key.</p>
+    <div class="plans">
+      <div class="plan">
+        <div class="name">Public repos</div>
+        <div class="price">$0</div>
+        <div class="per">forever</div>
+        <ul>
+          <li><b>Full gate</b> — hallucination + CVE checks</li>
+          <li>PR verdict comment + JSON certificate</li>
+          <li>Severity floor & fail-on policy</li>
+        </ul>
+        <a class="cta ghost" href="https://github.com/alwaysreadyallies/depfirewall">Install from GitHub</a>
+      </div>
+      <div class="plan pro">
+        <div class="name">Private repos</div>
+        <div class="price">$19</div>
+        <div class="per">per repository / month</div>
+        <ul>
+          <li>Everything in free, on <b>private repos</b></li>
+          <li>License key bound to your repo</li>
+          <li>Priority ecosystem support (go.mod, Cargo.toml next)</li>
+          <li>Email support</li>
+        </ul>
+        <a class="cta solid" href="mailto:hello@alwaysreadyallies.com?subject=depfirewall%20private%20license">Get a license key</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Built to be trusted</h2>
+    <div class="trust" style="margin-top:32px">
+      <div><b>Your code stays on GitHub</b>Pure registry-metadata lookups. Nothing is uploaded, nothing is stored, no telemetry.</div>
+      <div><b>False positives treated as fatal</b>A brand-new legit package gets a NEW warning, never a block — every 404 is double-confirmed before failing.</div>
+      <div><b>Stdlib only, auditable in an afternoon</b>A composite action running plain Python on your runner. MIT engine — read every line.</div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="brand">dep<span class="amp">firewall</span> · verification infrastructure for AI-written code</div>
+    <div>an <a href="https://alwaysreadyallies.com">Always Ready Allies</a> product · <a href="mailto:hello@alwaysreadyallies.com">hello@alwaysreadyallies.com</a></div>
+  </footer>
+</div>
+
+</body>
+</html>

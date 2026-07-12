@@ -1,0 +1,32 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests (offline, stdlib + pytest)
+        run: |
+          pip install pytest -q
+          python3 -m pytest tests/ -q
+      - name: Engine smoke (live APIs)
+        run: |
+          python3 src/main.py --check pypi requests 2.5.0 && exit 1 || test $? -eq 1
+          python3 src/main.py --check pypi "depfw-hallucinated-$(openssl rand -hex 8)" && exit 1 || test $? -eq 1
+          python3 src/main.py --check pypi requests
+
+  dogfood:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run depfirewall on our own PR
+        uses: ./

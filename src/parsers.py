@@ -35,8 +35,9 @@ def parse_package_json(path):
             if spec.startswith(("file:", "link:", "git", "http", "workspace:")):
                 reqs.append(("npm", name, None))
                 continue
-            v = re.sub(r"^[\^~>=<\s]*", "", spec).split(" ")[0] or None
-            reqs.append(("npm", name, v if re.match(r"^\d+\.\d+\.\d+$", v or "") else None))
+            # only an EXACT version is a pin; ranges (^ ~ >= etc.) resolve at install
+            # time — checking the range floor would false-positive on patched releases
+            reqs.append(("npm", name, spec if re.match(r"^\d+\.\d+\.\d+$", spec) else None))
     return reqs
 
 
