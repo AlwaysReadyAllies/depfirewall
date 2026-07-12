@@ -24,8 +24,10 @@ def verify_key(key, repo, verify_url):
     if not key:
         return False, "no license key provided"
     q = urllib.parse.urlencode({"key": key, "repo": repo})
+    # explicit UA: Cloudflare challenge-blocks the default Python-urllib agent (403)
+    req = urllib.request.Request(f"{verify_url}?{q}", headers={"User-Agent": "depfirewall/1.0"})
     try:
-        with urllib.request.urlopen(f"{verify_url}?{q}", timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
         return bool(data.get("valid")), data.get("reason", "")
     except Exception as e:
