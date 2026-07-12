@@ -1,10 +1,20 @@
-# 🛡️ depfirewall — block hallucinated & vulnerable dependencies before merge
+# 🛡️ depfirewall — the dependency check that lives in your PR
 
-AI writes code that imports packages that **don't exist**. Attackers pre-register those
-names ("slopsquatting") and wait. Every team merging AI-generated code is exposed —
-and no generator verifies its own output.
+[![CI](https://github.com/AlwaysReadyAllies/depfirewall/actions/workflows/ci.yml/badge.svg)](https://github.com/AlwaysReadyAllies/depfirewall/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-f0a028.svg)](LICENSE)
+[![Free for public repos](https://img.shields.io/badge/public%20repos-free-5bb87a.svg)](#pricing)
 
-depfirewall is a GitHub Action that checks every dependency a PR **adds or changes**:
+A **GitHub Action**, not a platform. One workflow file, no account, no config, no code leaves
+GitHub — it fails a pull request that adds a dependency **that doesn't exist on any registry**
+(an AI hallucination, or the slopsquat package an attacker pre-registered on that name) or one
+with **known CVEs**. **Free for public repos**, [$19/repo/month](#pricing) for private.
+
+AI writes code that imports packages that don't exist; attackers register those names and wait.
+Studies put LLM package-hallucination at [~5–20% of dependency suggestions](https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen),
+and dozens of the exact names every model invents are [still registrable today](https://socket.dev/blog/slopsquatting-how-ai-hallucinations-are-fueling-a-new-class-of-supply-chain-attacks).
+`npm audit` and Dependabot can't help — they only scan packages that *exist*.
+
+depfirewall checks every dependency a PR **adds or changes**:
 
 | Verdict | Meaning | Default |
 |---|---|---|
@@ -87,6 +97,28 @@ Studies show LLMs hallucinate package names in ~5–20% of generated dependency 
 and those names are systematically pre-registered by attackers. A dependency that exists
 nowhere is either a typo or a trap — either way it must not merge. That's the wedge no
 linter and no `npm audit` covers: **they can only scan what exists.**
+
+## Pricing
+
+| | Public repos | Private repos |
+|---|---|---|
+| **Price** | **Free, forever** | **$19 / repo / month** |
+| Full gate (UNKNOWN + CVE) | ✓ | ✓ |
+| PR verdict comment + certificate | ✓ | ✓ |
+| Severity floor & fail-on policy | ✓ | ✓ |
+
+Priced **per repository**, not per developer — a small team pays for the repos it protects, not
+every seat. [Get a private-repo license →](https://buy.stripe.com/eVq14nd469kSbJ9fda8IU00)
+
+## Data handling & trust
+
+- **Your code never leaves GitHub.** The Action runs on your own runner and makes outbound calls
+  *only* to public package registries (deps.dev, PyPI, npm) with dependency **names** — never your
+  source. No telemetry, nothing stored.
+- **Advisory by default.** depfirewall reports a verdict and a check status; you decide whether a
+  failing check blocks the merge (branch protection is yours to set). It is a decision-support tool,
+  provided without warranty — not a guarantee of security.
+- **Auditable.** The whole engine is stdlib Python, MIT-licensed, ~600 lines. Read every line.
 
 ---
 
