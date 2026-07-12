@@ -1,8 +1,5 @@
 name: "Dependency Firewall"
-description: >-
-  Block PRs that add hallucinated (nonexistent / slopsquat) or vulnerable dependencies.
-  AI writes code that imports packages that don't exist — attackers pre-register those
-  names. This catches it before merge.
+description: "Block PRs that add hallucinated (slopsquat) or vulnerable dependencies before merge."
 author: "Always Ready Allies"
 branding:
   icon: "shield"
