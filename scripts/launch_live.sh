@@ -28,6 +28,8 @@ echo "== 2/4 create the demo repo =="
 DEMO=/tmp/depfirewall-demo-$$
 mkdir -p "$DEMO" && cd "$DEMO"
 git init -qb main
+git config user.email "hello@alwaysreadyallies.com"
+git config user.name "Always Ready Allies"
 cat > requirements.txt <<'EOF'
 flask
 numpy
