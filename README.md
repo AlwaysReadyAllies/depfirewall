@@ -39,7 +39,7 @@ jobs:
 That's it. No config, no API keys, no runtime dependencies (stdlib Python on the runner),
 no code leaves GitHub — the Action only queries public registry metadata.
 
-**Free for public repos.** Private repos need a [license key](https://alwaysreadyallies.com/depfirewall#pricing):
+**Free for public repos.** Private repos need a [license key](https://buy.stripe.com/eVq14nd469kSbJ9fda8IU00) ($19/repo/month):
 
 ```yaml
       - uses: alwaysreadyallies/depfirewall@v1

@@ -9,12 +9,13 @@ import os
 import urllib.parse
 import urllib.request
 
-PURCHASE_URL = "https://alwaysreadyallies.com/depfirewall#pricing"
+PURCHASE_URL = "https://buy.stripe.com/eVq14nd469kSbJ9fda8IU00"
 
 PURCHASE_NOTE = (
     "🔒 **This is a private repository.** depfirewall is free for public repos; "
-    f"private repos need a license key — [get one here]({PURCHASE_URL}), then add it as "
-    "the `DEPFIREWALL_KEY` secret and pass `license-key: ${{ secrets.DEPFIREWALL_KEY }}`."
+    f"private repos need a license — [purchase here]({PURCHASE_URL}) "
+    "(your key arrives by email), then add it as the `DEPFIREWALL_KEY` secret and pass "
+    "`license-key: ${{ secrets.DEPFIREWALL_KEY }}`."
 )
 
 
