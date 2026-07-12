@@ -26,7 +26,7 @@ from engine import check_one, should_fail
 from parsers import MANIFEST_NAMES, discover_manifests, parse_manifest
 
 DEFAULT_FAIL_ON = "unknown,vulnerable"
-DEFAULT_VERIFY_URL = "https://depfirewall-verify.alwaysreadyallies.workers.dev/verify"
+DEFAULT_VERIFY_URL = "https://depfirewall-verify.theadamsfamily1981.workers.dev/verify"
 
 
 def build_certificate(results, overall, mode, repo="", pr=None, commit=""):

@@ -26,7 +26,7 @@ inputs:
     default: "true"
   verify-url:
     description: "License verification endpoint (override for testing)"
-    default: "https://depfirewall-verify.alwaysreadyallies.workers.dev/verify"
+    default: "https://depfirewall-verify.theadamsfamily1981.workers.dev/verify"
   github-token:
     description: "Token for the PR comment + repo visibility check"
     default: "${{ github.token }}"

@@ -3,5 +3,5 @@ main = "worker.js"
 compatibility_date = "2026-07-01"
 
 kv_namespaces = [
-  { binding = "LICENSES", id = "PLACEHOLDER_SET_ON_DEPLOY" }
+  { binding = "LICENSES", id = "5b2fe85b0c8a46b391f3a629309de10e" }
 ]
