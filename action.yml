@@ -1,0 +1,61 @@
+name: "Dependency Firewall"
+description: >-
+  Block PRs that add hallucinated (nonexistent / slopsquat) or vulnerable dependencies.
+  AI writes code that imports packages that don't exist — attackers pre-register those
+  names. This catches it before merge.
+author: "Always Ready Allies"
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  fail-on:
+    description: "Comma-separated verdicts that fail the check (unknown,vulnerable,deprecated,stale)"
+    default: "unknown,vulnerable"
+  severity-floor:
+    description: "Minimum CVSS score for VULNERABLE to fail (0 = any advisory fails)"
+    default: "0"
+  manifests:
+    description: "Explicit manifest paths, space-separated (default: auto-discover)"
+    default: ""
+  license-key:
+    description: "License key for private repos (pass secrets.DEPFIREWALL_KEY)"
+    default: ""
+  comment:
+    description: "Post/update the verdict comment on the PR"
+    default: "true"
+  verify-url:
+    description: "License verification endpoint (override for testing)"
+    default: "https://depfirewall-verify.alwaysreadyallies.workers.dev/verify"
+  github-token:
+    description: "Token for the PR comment + repo visibility check"
+    default: "${{ github.token }}"
+
+outputs:
+  verdict:
+    description: "PASS, FAIL, or BLOCKED (unlicensed private repo)"
+    value: "${{ steps.firewall.outputs.verdict }}"
+  counts:
+    description: "JSON verdict counts, e.g. {\"SAFE\": 3, \"UNKNOWN\": 1}"
+    value: "${{ steps.firewall.outputs.counts }}"
+  certificate-path:
+    description: "Path to the P-checkable JSON certificate"
+    value: "${{ steps.firewall.outputs.certificate-path }}"
+
+runs:
+  using: "composite"
+  steps:
+    - id: firewall
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        MANIFEST_ARGS=""
+        for m in ${{ inputs.manifests }}; do MANIFEST_ARGS="$MANIFEST_ARGS --manifest $m"; done
+        python3 "${{ github.action_path }}/src/main.py" --pr \
+          --fail-on "${{ inputs.fail-on }}" \
+          --severity-floor "${{ inputs.severity-floor }}" \
+          --license-key "${{ inputs.license-key }}" \
+          --verify-url "${{ inputs.verify-url }}" \
+          --comment "${{ inputs.comment }}" \
+          $MANIFEST_ARGS

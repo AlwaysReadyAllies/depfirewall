@@ -1,0 +1,7 @@
+name = "depfirewall-verify"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+kv_namespaces = [
+  { binding = "LICENSES", id = "PLACEHOLDER_SET_ON_DEPLOY" }
+]
