@@ -110,6 +110,24 @@ linter and no `npm audit` covers: **they can only scan what exists.**
 Priced **per repository**, not per developer — a small team pays for the repos it protects, not
 every seat. [Get a private-repo license →](https://buy.stripe.com/eVq14nd469kSbJ9fda8IU00)
 
+## GitHub Security tab (SARIF)
+
+depfirewall writes a SARIF report every run. Add one step to surface findings as **code-scanning
+alerts** in your repo's Security tab (and inline on PRs):
+
+```yaml
+    steps:
+      - uses: actions/checkout@v4
+      - id: depfirewall
+        uses: alwaysreadyallies/depfirewall@v1
+      - if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.depfirewall.outputs.sarif-path }}
+```
+
+Needs `permissions: security-events: write`. Locally, `--sarif out.sarif` writes the same file.
+
 ## Data handling & trust
 
 - **Your code never leaves GitHub.** The Action runs on your own runner and makes outbound calls

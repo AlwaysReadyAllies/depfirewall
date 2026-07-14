@@ -101,6 +101,11 @@ def run_pr_mode(args, fail_on, floor):
     cert_path = os.path.join(workspace, "depfirewall-certificate.json")
     with open(cert_path, "w") as f:
         json.dump(cert, f, indent=2)
+    if args.sarif:
+        import sarif
+        with open(args.sarif, "w") as f:
+            json.dump(sarif.to_sarif(cert["results"]), f, indent=2)
+        print(f"sarif: {args.sarif}")
     counts = {}
     for r in results:
         counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
@@ -135,6 +140,7 @@ def main():
     ap.add_argument("--comment", default=True,
                     type=lambda s: str(s).lower() not in ("false", "0", "no"))
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--sarif", metavar="PATH", help="write a SARIF 2.1.0 report (GitHub Security tab)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -160,10 +166,16 @@ def main():
     results = [check_one(*t) for t in targets]
     failures = [r for r in results if should_fail(r, fail_on, floor)]
     overall = "FAIL" if failures else "PASS"
+    cert = build_certificate(results, overall, "manual")
     if args.json:
-        print(json.dumps(build_certificate(results, overall, "manual"), indent=2))
+        print(json.dumps(cert, indent=2))
     else:
         print_human(results, overall)
+    if args.sarif:
+        import sarif
+        with open(args.sarif, "w") as f:
+            json.dump(sarif.to_sarif(cert["results"]), f, indent=2)
+        print(f"sarif: {args.sarif}")
     return 1 if failures else 0
 
 

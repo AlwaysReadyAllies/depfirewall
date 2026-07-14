@@ -38,6 +38,9 @@ outputs:
   certificate-path:
     description: "Path to the P-checkable JSON certificate"
     value: "${{ steps.firewall.outputs.certificate-path }}"
+  sarif-path:
+    description: "Path to the SARIF report (feed to github/codeql-action/upload-sarif)"
+    value: "${{ github.workspace }}/depfirewall.sarif"
 
 runs:
   using: "composite"
@@ -49,10 +52,17 @@ runs:
       run: |
         MANIFEST_ARGS=""
         for m in ${{ inputs.manifests }}; do MANIFEST_ARGS="$MANIFEST_ARGS --manifest $m"; done
+        SARIF="${{ github.workspace }}/depfirewall.sarif"
         python3 "${{ github.action_path }}/src/main.py" --pr \
           --fail-on "${{ inputs.fail-on }}" \
           --severity-floor "${{ inputs.severity-floor }}" \
           --license-key "${{ inputs.license-key }}" \
           --verify-url "${{ inputs.verify-url }}" \
           --comment "${{ inputs.comment }}" \
+          --sarif "$SARIF" \
           $MANIFEST_ARGS
+        rc=$?
+        # guarantee a valid SARIF exists even on an early exit (e.g. unlicensed private repo),
+        # so a consumer's upload-sarif step never fails on a missing file
+        [ -f "$SARIF" ] || echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"depfirewall"}},"results":[]}]}' > "$SARIF"
+        exit $rc
